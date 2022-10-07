@@ -19,6 +19,7 @@ class WrongEmptyLinesCountVisitor(base.BaseTokenVisitor):
 
     def visit(self, token: tokenize.TokenInfo) -> None:
         """Find empty lines count."""
+        print(token)
         self._try_mark_function_start(token)
         if self._function_start_line:
             if token.type == tokenize.NL and token.line == '\n':
