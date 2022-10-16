@@ -10,49 +10,60 @@ from wemake_python_styleguide.visitors import base
 @final
 class _Function(object):
 
-    _tokens: tuple[tokenize.TokenInfo]
+    _tokens: tuple[tokenize.TokenInfo, ...]
 
-    def __init__(self, file_tokens: tuple[tokenize.TokenInfo]):
+    def __init__(self, file_tokens: tuple[tokenize.TokenInfo, ...]):
         self._tokens = file_tokens
 
-    def name_token(self):
+    def name_token(self) -> tokenize.TokenInfo:
         return self._tokens[1]
 
-    def body(self):
+    def body(self) -> str:
         target_tokens = []
         for token in self._tokens:
-            if '#' in token.line or token.type == tokenize.STRING or '"""' in token.line:
+            if self._is_target_line(token):
                 continue
             target_tokens.append(
                 token,
             )
-        from pprint import pprint
-        pprint(list(token for token in target_tokens))
-        return ''.join(list(token.string for token in target_tokens))
+        return ''.join([target_token.string for target_token in target_tokens])
+
+    def _is_target_line(self, token) -> bool:
+        is_comment = '#' in token.line
+        is_string = token.type == tokenize.STRING
+        is_multistring_end = '"""' in token.line
+        return is_comment or is_string or is_multistring_end
 
 
 @final
 class _FileFunctions(object):
 
-    _file_tokens: list[tokenize.TokenInfo]
+    _file_tokens: tuple[tokenize.TokenInfo, ...]
 
-    def __init__(self, file_tokens: list[tokenize.TokenInfo]):
+    def __init__(self, file_tokens: tuple[tokenize.TokenInfo, ...]):
         self._file_tokens = file_tokens
 
-    def as_list(self):
+    def as_list(self) -> list[_Function]:
         functions = []
-        function_tokens = []
+        function_tokens: list[tokenize.TokenInfo] = []
         in_function = False
         for token in self._file_tokens:
-            if token.type == tokenize.NAME and token.string == 'def':
+            if self._is_definition_token(token):
                 in_function = True
-            elif token.type == tokenize.DEDENT and token.string == '' and function_tokens:
+            elif self._is_function_end(token, function_tokens):
                 in_function = False
                 functions.append(_Function(tuple(function_tokens)))
                 function_tokens = []
             if in_function:
                 function_tokens.append(token)
         return functions
+
+    def _is_definition_token(self, token) -> bool:
+        return token.type == tokenize.NAME and token.string == 'def'
+
+    def _is_function_end(self, token, function_tokens) -> bool:
+        is_dedent_token = token.type == tokenize.DEDENT and token.string == ''
+        return is_dedent_token and function_tokens
 
 
 @final
@@ -62,31 +73,23 @@ class _FileTokens(object):
     def __init__(
         self,
         file_functions: _FileFunctions,
-        exps_for_one_empty_line: int
+        exps_for_one_empty_line: int,
     ):
         self._file_functions = file_functions
         self._exps_for_one_empty_line = exps_for_one_empty_line
 
-    def analyze(self):
+    def analyze(self) -> list[best_practices.WrongEmptyLinesCountViolation]:
         violations = []
         for function in self._file_functions.as_list():
             splitted_function_body = function.body().strip().split('\n')
-            print('----------')
-            print(function.body())
             empty_lines_count = len([
-                line for line
-                in splitted_function_body
-                if line == ''
+                line for line in splitted_function_body if line == ''
             ])
-            print(f'{empty_lines_count=}')
-            print('----------')
             if not empty_lines_count:
                 return []
             available_empty_lines = self._available_empty_lines(
-                len(splitted_function_body), empty_lines_count
+                len(splitted_function_body), empty_lines_count,
             )
-            print(f'{available_empty_lines=}')
-            print('----------')
             if empty_lines_count > available_empty_lines:
                 violations.append(
                     best_practices.WrongEmptyLinesCountViolation(
@@ -127,7 +130,7 @@ class WrongEmptyLinesCountVisitor(base.BaseTokenVisitor):
             return
         violations = _FileTokens(
             _FileFunctions(
-                self._file_tokens
+                tuple(self._file_tokens),
             ),
             self.options.exps_for_one_empty_line,
         ).analyze()
