@@ -62,13 +62,12 @@ class _FileFunctions(object):
         return token.type == tokenize.NAME and token.string == 'def'
 
     def _is_function_end(self, token, function_tokens) -> bool:
-        is_dedent_token = token.type == tokenize.DEDENT and token.string == ''
+        is_dedent_token = token.type == tokenize.DEDENT and token.start[1] == 0
         return is_dedent_token and function_tokens
 
 
 @final
 class _FileTokens(object):
-    """Class for checking all file_tokens."""
 
     def __init__(
         self,
