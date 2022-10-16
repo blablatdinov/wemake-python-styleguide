@@ -42,10 +42,10 @@ class ValidClass(object):
         foo()
         bar()
 
+
 class EmptyError(Exception):
 
     message = 'fail'
-
 """
 
 wrong_function = """
@@ -159,11 +159,11 @@ def test_wrong(
 
 
 @pytest.mark.parametrize('input_', [
-    # class_with_valid_method,
-    # allow_function,
-    # allow_function_with_comments,
-    # function_with_docstring,
-    # function_with_docstring_and_comments,
+    class_with_valid_method,
+    allow_function,
+    allow_function_with_comments,
+    function_with_docstring,
+    function_with_docstring_and_comments,
     file_with_few_class,
 ])
 def test_success(
